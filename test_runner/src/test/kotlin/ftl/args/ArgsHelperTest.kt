@@ -176,11 +176,13 @@ class ArgsHelperTest {
 
     @Test
     fun evaluateBlobInFilePath() {
-        val testApkRelativePath = "../test_app/apks/app-debug-androidTest.apk"
         val testApkBlobPath = "../test_app/**/app-debug-*.apk"
+        val actual = ArgsHelper.evaluateFilePath(testApkBlobPath)
 
-        assertThat(File(testApkRelativePath).absolutePath)
-            .isEqualTo(ArgsHelper.evaluateFilePath(testApkBlobPath))
+        val testApkRelativePath = "../test_app/apks/app-debug-androidTest.apk"
+        val expected = testApkRelativePath.absolutePath()
+
+        assertThat(actual).isEqualTo(expected)
     }
 
     private fun makeTmpFile(filePath: String): String {
@@ -196,7 +198,7 @@ class ArgsHelperTest {
     }
 
     private fun String.absolutePath(): String {
-        return File(this).absolutePath
+        return Paths.get(this).toAbsolutePath().normalize().toString()
     }
 
     @Test
@@ -204,7 +206,7 @@ class ArgsHelperTest {
         Files.walkFileTree(Paths.get("/tmp"), object : SimpleFileVisitor<Path>() {
             @Throws(IOException::class)
             override fun visitFile(path: Path, attrs: BasicFileAttributes): FileVisitResult {
-                 // hits '/tmp' once and doesn't iterate through the files
+                // hits '/tmp' once and doesn't iterate through the files
                 return FileVisitResult.CONTINUE
             }
 
@@ -232,13 +234,14 @@ class ArgsHelperTest {
     fun evaluateEnvVarInFilePath() {
         environmentVariables.set("TEST_APK_DIR", "test_app/apks")
         val testApkPath = "../\$TEST_APK_DIR/app-debug-androidTest.apk"
-        val expectedPath = "../test_app/apks/app-debug-androidTest.apk".absolutePath()
+        val actual = ArgsHelper.evaluateFilePath(testApkPath)
 
-        assertThat(expectedPath)
-            .isEqualTo(ArgsHelper.evaluateFilePath(testApkPath))
+        val expected = "../test_app/apks/app-debug-androidTest.apk".absolutePath()
+
+        assertThat(actual).isEqualTo(expected)
     }
 
-    @Test(expected = RuntimeException::class)
+    @Test(expected = java.nio.file.NoSuchFileException::class)
     fun evaluateInvalidFilePath() {
         val testApkPath = "~/flank_test_app/invalid_path/app-debug-*.xctestrun"
         ArgsHelper.evaluateFilePath(testApkPath)
